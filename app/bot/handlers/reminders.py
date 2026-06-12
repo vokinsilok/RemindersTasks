@@ -12,6 +12,7 @@ from app.bot.keyboards.common import (
     reminder_category_select,
     reminders_menu,
 )
+from app.bot.ui import empty_state, field, h, header
 from app.db.models import RecurrenceType
 from app.db.repositories.categories import CategoryRepository
 from app.db.repositories.reminders import ReminderRepository
@@ -31,7 +32,7 @@ class ReminderStates(StatesGroup):
 
 
 RECURRENCE_LABELS = {
-    RecurrenceType.ONCE: "разовое",
+    RecurrenceType.ONCE: "один раз",
     RecurrenceType.DAILY: "каждый день",
     RecurrenceType.WEEKLY: "каждую неделю",
     RecurrenceType.MONTHLY: "каждый месяц",
@@ -41,17 +42,22 @@ RECURRENCE_LABELS = {
 
 def render_reminders_text(items) -> str:
     if not items:
-        return "Активных напоминаний пока нет."
+        return empty_state(
+            "Напоминания",
+            "Активных напоминаний пока нет. Создайте первое и бот напишет в нужное время.",
+        )
 
-    lines = []
+    blocks = []
     for item in items:
         category = item.category.title if item.category else "без категории"
-        lines.append(
-            f"#{item.id} {format_datetime(item.next_run_at)}\n"
-            f"{item.title}\n"
-            f"Категория: {category}; повтор: {RECURRENCE_LABELS[item.recurrence]}"
+        description = f"\n{h(item.description)}" if item.description else ""
+        blocks.append(
+            f"<b>#{item.id} {h(item.title)}</b>{description}\n"
+            f"{field('Когда', format_datetime(item.next_run_at))}\n"
+            f"{field('Категория', category)}\n"
+            f"{field('Повтор', RECURRENCE_LABELS[item.recurrence])}"
         )
-    return "Активные напоминания:\n\n" + "\n\n".join(lines)
+    return f"{header('Напоминания', 'Активные уведомления в порядке ближайшего срока.')}\n\n" + "\n\n".join(blocks)
 
 
 @router.callback_query(F.data == "main:reminders")
@@ -64,6 +70,7 @@ async def reminders(callback: CallbackQuery) -> None:
     await callback.message.edit_text(
         render_reminders_text(items),
         reply_markup=reminders_menu([item.id for item in items]),
+        parse_mode="HTML",
     )
     await callback.answer()
 
@@ -72,7 +79,12 @@ async def reminders(callback: CallbackQuery) -> None:
 async def add_reminder(callback: CallbackQuery, state: FSMContext) -> None:
     await state.clear()
     await state.set_state(ReminderStates.title)
-    await callback.message.edit_text("Введите заголовок напоминания.", reply_markup=back_to_menu())
+    await callback.message.edit_text(
+        f"{header('Новое напоминание', 'Шаг 1 из 5 - заголовок.')}\n\n"
+        "Напишите короткое название. Например: Оплатить интернет.",
+        reply_markup=back_to_menu(),
+        parse_mode="HTML",
+    )
     await callback.answer()
 
 
@@ -85,7 +97,11 @@ async def reminder_title(message: Message, state: FSMContext) -> None:
 
     await state.update_data(title=title)
     await state.set_state(ReminderStates.description)
-    await message.answer("Введите описание или отправьте `-`, чтобы пропустить.")
+    await message.answer(
+        f"{header('Новое напоминание', 'Шаг 2 из 5 - описание.')}\n\n"
+        "Добавьте детали или отправьте '-', если описание не нужно.",
+        parse_mode="HTML",
+    )
 
 
 @router.message(ReminderStates.description)
@@ -99,7 +115,12 @@ async def reminder_description(message: Message, state: FSMContext) -> None:
         categories = await CategoryRepository(session).list_for_user(user_id)
         await session.commit()
 
-    await message.answer("Выберите категорию.", reply_markup=reminder_category_select(categories))
+    await message.answer(
+        f"{header('Новое напоминание', 'Шаг 3 из 5 - категория.')}\n\n"
+        "Выберите категорию или оставьте напоминание без категории.",
+        reply_markup=reminder_category_select(categories),
+        parse_mode="HTML",
+    )
 
 
 @router.callback_query(ReminderStates.category, F.data.startswith("rem:category:"))
@@ -108,7 +129,12 @@ async def reminder_category(callback: CallbackQuery, state: FSMContext) -> None:
     category_id = None if raw_category_id == "none" else int(raw_category_id)
     await state.update_data(category_id=category_id)
     await state.set_state(ReminderStates.recurrence)
-    await callback.message.edit_text("Выберите тип повтора.", reply_markup=recurrence_select())
+    await callback.message.edit_text(
+        f"{header('Новое напоминание', 'Шаг 4 из 5 - повтор.')}\n\n"
+        "Выберите, как часто напоминание должно срабатывать.",
+        reply_markup=recurrence_select(),
+        parse_mode="HTML",
+    )
     await callback.answer()
 
 
@@ -118,9 +144,12 @@ async def reminder_recurrence(callback: CallbackQuery, state: FSMContext) -> Non
     await state.update_data(recurrence=recurrence.value)
     await state.set_state(ReminderStates.remind_at)
     await callback.message.edit_text(
-        "Введите дату и время: `ДД.ММ.ГГГГ ЧЧ:ММ` или `ДД.ММ ЧЧ:ММ`.",
+        f"{header('Новое напоминание', 'Шаг 5 из 5 - дата и время.')}\n\n"
+        "Формат: ДД.ММ.ГГГГ ЧЧ:ММ\n"
+        "Можно короче: ДД.ММ ЧЧ:ММ\n\n"
+        "Пример: 15.06.2026 09:30",
         reply_markup=back_to_menu(),
-        parse_mode="Markdown",
+        parse_mode="HTML",
     )
     await callback.answer()
 
@@ -130,7 +159,7 @@ async def reminder_remind_at(message: Message, state: FSMContext) -> None:
     try:
         remind_at = parse_user_datetime(message.text or "")
     except ValueError:
-        await message.answer("Не понял дату. Пример: `15.06.2026 09:30`.", parse_mode="Markdown")
+        await message.answer("Не понял дату. Пример: 15.06.2026 09:30")
         return
 
     if remind_at <= datetime.now():
@@ -153,7 +182,14 @@ async def reminder_remind_at(message: Message, state: FSMContext) -> None:
         await session.commit()
 
     await state.clear()
-    await message.answer("Напоминание создано.", reply_markup=back_to_menu())
+    await message.answer(
+        f"{header('Напоминание создано')}\n\n"
+        f"{field('Название', data['title'])}\n"
+        f"{field('Когда', format_datetime(remind_at))}\n"
+        f"{field('Повтор', RECURRENCE_LABELS[RecurrenceType(data['recurrence'])])}",
+        reply_markup=back_to_menu(),
+        parse_mode="HTML",
+    )
 
 
 @router.callback_query(F.data.startswith("rem:disable:"))

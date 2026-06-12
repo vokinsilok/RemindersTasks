@@ -9,6 +9,7 @@ from app.config import get_settings
 from app.db.models import RecurrenceType, Reminder
 from app.db.repositories.reminders import ReminderRepository
 from app.db.session import async_session_maker
+from app.bot.ui import field, h, header
 from app.services.datetime_parser import format_datetime
 from app.services.recurrence import calculate_next_run
 
@@ -18,14 +19,14 @@ logger = logging.getLogger(__name__)
 def build_reminder_message(reminder: Reminder) -> str:
     category = reminder.category.title if reminder.category else "без категории"
     parts = [
-        "Напоминание",
+        header("Напоминание"),
         "",
-        reminder.title,
-        f"Категория: {category}",
-        f"Время: {format_datetime(reminder.next_run_at)}",
+        f"<b>{h(reminder.title)}</b>",
+        field("Категория", category),
+        field("Время", format_datetime(reminder.next_run_at)),
     ]
     if reminder.description:
-        parts.extend(["", reminder.description])
+        parts.extend(["", h(reminder.description)])
     return "\n".join(parts)
 
 
@@ -47,6 +48,7 @@ async def process_due_reminders(bot: Bot) -> None:
                 await bot.send_message(
                     reminder.user.telegram_id,
                     build_reminder_message(reminder),
+                    parse_mode="HTML",
                 )
             except (TelegramForbiddenError, TelegramBadRequest) as exc:
                 logger.warning("Failed to send reminder %s: %s", reminder.id, exc)

@@ -6,6 +6,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app.bot.handlers.common import ensure_user
 from app.bot.keyboards.common import back_to_menu, categories_menu
+from app.bot.ui import empty_state, h, header
 from app.db.repositories.categories import CategoryRepository
 from app.db.session import async_session_maker
 from app.schemas.categories import CategoryCreate
@@ -17,24 +18,28 @@ class CategoryStates(StatesGroup):
     title = State()
 
 
-def render_categories_text(category_titles: list[str]) -> str:
-    if not category_titles:
-        return "Категорий пока нет."
-    lines = "\n".join(f"- {title}" for title in category_titles)
-    return f"Категории:\n\n{lines}"
+def render_categories_text(items) -> str:
+    if not items:
+        return empty_state(
+            "Категории",
+            "Категорий пока нет. Создайте первую, например: Работа, Семья, Здоровье.",
+        )
+
+    lines = "\n".join(f"#{item.id} - <b>{h(item.title)}</b>" for item in items)
+    return f"{header('Категории', 'Группируйте напоминания так, как удобно вам.')}\n\n{lines}"
 
 
 @router.callback_query(F.data == "main:categories")
 async def categories(callback: CallbackQuery) -> None:
     async with async_session_maker() as session:
         user_id = await ensure_user(session, callback.from_user)
-        category_repo = CategoryRepository(session)
-        items = await category_repo.list_for_user(user_id)
+        items = await CategoryRepository(session).list_for_user(user_id)
         await session.commit()
 
     await callback.message.edit_text(
-        render_categories_text([item.title for item in items]),
+        render_categories_text(items),
         reply_markup=categories_menu(items),
+        parse_mode="HTML",
     )
     await callback.answer()
 
@@ -43,24 +48,25 @@ async def categories(callback: CallbackQuery) -> None:
 async def add_category(callback: CallbackQuery, state: FSMContext) -> None:
     await state.set_state(CategoryStates.title)
     await callback.message.edit_text(
-        "Введите название категории.",
+        f"{header('Новая категория', 'Напишите короткое название.')}\n\n"
+        "Примеры: Работа, Дни рождения, Платежи.",
         reply_markup=back_to_menu(),
+        parse_mode="HTML",
     )
     await callback.answer()
 
 
 @router.message(CategoryStates.title)
 async def save_category(message: Message, state: FSMContext) -> None:
-    title = message.text.strip()
+    title = (message.text or "").strip()
     if len(title) < 2:
         await message.answer("Название должно быть длиннее одного символа.")
         return
 
     async with async_session_maker() as session:
         user_id = await ensure_user(session, message.from_user)
-        category_repo = CategoryRepository(session)
         try:
-            await category_repo.create(user_id, CategoryCreate(title=title))
+            await CategoryRepository(session).create(user_id, CategoryCreate(title=title))
             await session.commit()
         except IntegrityError:
             await session.rollback()
@@ -68,7 +74,11 @@ async def save_category(message: Message, state: FSMContext) -> None:
             return
 
     await state.clear()
-    await message.answer("Категория создана.", reply_markup=back_to_menu())
+    await message.answer(
+        f"{header('Категория создана')}\n\nТеперь ее можно выбрать при создании напоминания.",
+        reply_markup=back_to_menu(),
+        parse_mode="HTML",
+    )
 
 
 @router.callback_query(F.data.startswith("cat:delete:"))

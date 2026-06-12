@@ -6,7 +6,7 @@ from app.db.models import RecurrenceType, ReminderCategory, TaskPriority
 def main_menu() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="Dashboard", callback_data="main:dashboard")],
+            [InlineKeyboardButton(text="Панель", callback_data="main:dashboard")],
             [
                 InlineKeyboardButton(text="Напоминания", callback_data="main:reminders"),
                 InlineKeyboardButton(text="Задачи", callback_data="main:tasks"),
@@ -18,17 +18,17 @@ def main_menu() -> InlineKeyboardMarkup:
 
 def back_to_menu() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
-        inline_keyboard=[[InlineKeyboardButton(text="Назад", callback_data="main:menu")]]
+        inline_keyboard=[[InlineKeyboardButton(text="В главное меню", callback_data="main:menu")]]
     )
 
 
 def categories_menu(categories: list[ReminderCategory]) -> InlineKeyboardMarkup:
-    rows = [[InlineKeyboardButton(text="Добавить", callback_data="cat:add")]]
+    rows = [[InlineKeyboardButton(text="Создать категорию", callback_data="cat:add")]]
     rows.extend(
-        [InlineKeyboardButton(text=f"Удалить: {category.title}", callback_data=f"cat:delete:{category.id}")]
+        [InlineKeyboardButton(text=f"Удалить #{category.id}", callback_data=f"cat:delete:{category.id}")]
         for category in categories
     )
-    rows.append([InlineKeyboardButton(text="Назад", callback_data="main:menu")])
+    rows.append([InlineKeyboardButton(text="В главное меню", callback_data="main:menu")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
@@ -44,7 +44,7 @@ def reminder_category_select(categories: list[ReminderCategory]) -> InlineKeyboa
 
 def recurrence_select() -> InlineKeyboardMarkup:
     labels = {
-        RecurrenceType.ONCE: "Разовое",
+        RecurrenceType.ONCE: "Один раз",
         RecurrenceType.DAILY: "Каждый день",
         RecurrenceType.WEEKLY: "Каждую неделю",
         RecurrenceType.MONTHLY: "Каждый месяц",
@@ -59,22 +59,22 @@ def recurrence_select() -> InlineKeyboardMarkup:
 
 
 def reminders_menu(reminder_ids: list[int]) -> InlineKeyboardMarkup:
-    rows = [[InlineKeyboardButton(text="Добавить", callback_data="rem:add")]]
+    rows = [[InlineKeyboardButton(text="Создать напоминание", callback_data="rem:add")]]
     rows.extend(
         [InlineKeyboardButton(text=f"Отключить #{reminder_id}", callback_data=f"rem:disable:{reminder_id}")]
         for reminder_id in reminder_ids
     )
-    rows.append([InlineKeyboardButton(text="Назад", callback_data="main:menu")])
+    rows.append([InlineKeyboardButton(text="В главное меню", callback_data="main:menu")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
 def tasks_menu(task_ids: list[int]) -> InlineKeyboardMarkup:
-    rows = [[InlineKeyboardButton(text="Добавить", callback_data="task:add")]]
+    rows = [[InlineKeyboardButton(text="Создать задачу", callback_data="task:add")]]
     rows.extend(
-        [InlineKeyboardButton(text=f"Готово #{task_id}", callback_data=f"task:done:{task_id}")]
+        [InlineKeyboardButton(text=f"Завершить #{task_id}", callback_data=f"task:done:{task_id}")]
         for task_id in task_ids
     )
-    rows.append([InlineKeyboardButton(text="Назад", callback_data="main:menu")])
+    rows.append([InlineKeyboardButton(text="В главное меню", callback_data="main:menu")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 

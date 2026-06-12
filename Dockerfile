@@ -12,4 +12,4 @@ COPY migrations ./migrations
 RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir .
 
-CMD ["sh", "-c", "alembic upgrade head && python -m app.main"]
+CMD ["sh", "-c", "python -m app.wait_for_db && alembic upgrade head && python -m app.main"]

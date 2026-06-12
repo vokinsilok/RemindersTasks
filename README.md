@@ -62,4 +62,11 @@ python -m app.main
 Для локального запуска `DATABASE_URL` в `.env` может указывать на `localhost`.
 В контейнере бота Compose переопределяет `DATABASE_URL` на хост `postgres`.
 
+Если нужен доступ к PostgreSQL с хоста, добавьте публикацию порта в `docker-compose.yml`:
+
+```yaml
+ports:
+  - "5432:5432"
+```
+
 ТЗ и план реализации лежат в `docs/TECHNICAL_SPEC.md`.
