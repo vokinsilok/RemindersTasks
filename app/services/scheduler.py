@@ -40,7 +40,7 @@ async def process_due_reminders(bot: Bot) -> None:
     now = datetime.now()
     async with async_session_maker() as session:
         repo = ReminderRepository(session)
-        due_reminders = await repo.due(now, platform="telegram")
+        due_reminders = await repo.due(now)
 
         for reminder in due_reminders:
             try:

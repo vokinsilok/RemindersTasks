@@ -47,38 +47,6 @@ docker compose down
 docker compose down -v
 ```
 
-## VK-бот
-
-VK-бот живет в отдельном сервисе `vk_bot` и использует ту же PostgreSQL-базу.
-
-В `.env` нужно заполнить:
-
-```env
-VK_GROUP_ID=123456789
-VK_GROUP_TOKEN=put-your-vk-group-token-here
-VK_API_VERSION=5.199
-```
-
-В настройках сообщества VK нужно включить сообщения сообщества, Long Poll API и событие `message_new`.
-
-Запуск VK-бота:
-
-```powershell
-docker compose --profile vk up -d --build vk_bot postgres
-```
-
-Логи VK-бота:
-
-```powershell
-docker compose logs -f vk_bot
-```
-
-Запуск Telegram-бота и VK-бота вместе:
-
-```powershell
-docker compose --profile vk up -d --build
-```
-
 ## Локальный запуск без контейнера бота
 
 Этот вариант нужен только для разработки.
@@ -89,12 +57,6 @@ pip install -e .
 docker compose up -d postgres
 alembic upgrade head
 python -m app.main
-```
-
-Локальный запуск VK-бота:
-
-```powershell
-python -m app.vk.main
 ```
 
 Для локального запуска `DATABASE_URL` в `.env` может указывать на `localhost`.

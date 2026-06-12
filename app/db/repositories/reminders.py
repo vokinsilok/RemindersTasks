@@ -51,15 +51,11 @@ class ReminderRepository:
         )
         return list(result.scalars())
 
-    async def due(self, now: datetime, platform: str | None = None, limit: int = 50) -> list[Reminder]:
-        conditions = [Reminder.is_active.is_(True), Reminder.next_run_at <= now]
-        if platform is not None:
-            conditions.append(Reminder.user.has(platform=platform))
-
+    async def due(self, now: datetime, limit: int = 50) -> list[Reminder]:
         result = await self.session.execute(
             select(Reminder)
             .options(selectinload(Reminder.user), selectinload(Reminder.category))
-            .where(*conditions)
+            .where(Reminder.is_active.is_(True), Reminder.next_run_at <= now)
             .order_by(Reminder.next_run_at)
             .limit(limit)
         )
