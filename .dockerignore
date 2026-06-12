@@ -1,0 +1,11 @@
+.env
+.venv/
+.idea/
+__pycache__/
+*.py[cod]
+*.sqlite3
+*.egg-info/
+.git/
+.gitignore
+README.md
+docs/

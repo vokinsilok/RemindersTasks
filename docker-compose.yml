@@ -1,0 +1,52 @@
+services:
+  bot:
+    build:
+      context: .
+    container_name: reminders_tasks_bot
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://reminders:reminders@postgres:5432/reminders_tasks
+      AUTO_CREATE_DB: "false"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  vk_bot:
+    build:
+      context: .
+    container_name: reminders_tasks_vk_bot
+    restart: unless-stopped
+    profiles:
+      - vk
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://reminders:reminders@postgres:5432/reminders_tasks
+      AUTO_CREATE_DB: "false"
+    command: sh -c "alembic upgrade head && python -m app.vk.main"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: reminders_tasks_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: reminders_tasks
+      POSTGRES_USER: reminders
+      POSTGRES_PASSWORD: reminders
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U reminders -d reminders_tasks"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres_data:
